@@ -46,7 +46,7 @@ class TianquePayment extends BaseClient
         $params = [
             'mno' => Arr::get($wxParams, 'mno', $this->userConfig['mno']),
             'ordNo' => $wxParams['out_trade_no'],
-            'amt' => re_wechat_fee($wxParams['total_fee']),
+            'amt' => bcdiv($wxParams['total_fee'], 100, 2),
             'payType' => $payType,
             'payWay' => $payWay,
             'subject' => $wxParams['body'],
@@ -126,7 +126,7 @@ class TianquePayment extends BaseClient
             'mno' => Arr::get($params, 'mno', $this->userConfig['mno']),
             'ordNo' => $refundNo,
             'origOrderNo' => $orderNo,
-            'amt' => re_wechat_fee($refundMoney),
+            'amt' => bcdiv($refundMoney, 100, 2),
             'notifyUrl' => Arr::get($params, 'notify_url', $this->userConfig['refundNotifyUrl']),
             'refundReason' => Arr::get($params, 'refund_desc', '业务退款'),
         ];
