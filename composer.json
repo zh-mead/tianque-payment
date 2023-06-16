@@ -1,0 +1,27 @@
+{
+    "name": "zh-mead\/tianque-payment",
+    "description": "Package description here.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "mead",
+            "email": "751066209@qq.com"
+        }
+    ],
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "ZhMead\\TianquePayment\\": "src"
+        },
+        "files": [
+            "src/Support/Helpers.php"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ZhMead\\TianquePayment\\ServiceProvider"
+            ]
+        }
+    }
+}
