@@ -3,7 +3,6 @@
 namespace ZhMead\TianquePayment;
 
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use ZhMead\TianquePayment\Kernel\AopClient;
 use ZhMead\TianquePayment\Kernel\BaseClient;
@@ -33,7 +32,7 @@ class TianquePayment extends BaseClient
             'openid' => 'required|string',
             'body' => 'required|string',
             'attach' => 'required|string',
-            'total_fee' => 'required|numeric'
+            'total_fee' => 'required|numeric',
         ]);
 
         if ($validator->fails()) {
@@ -50,6 +49,7 @@ class TianquePayment extends BaseClient
             'payType' => $payType,
             'payWay' => $payWay,
             'subject' => $wxParams['body'],
+            'ledgerAccountFlag' => Arr::get($wxParams, 'ledgerAccountFlag', '01'),
             'trmIp' => '',
 
             'notifyUrl' => Arr::get($wxParams, 'notify_url', $this->userConfig['notifyUrl']),
@@ -57,6 +57,9 @@ class TianquePayment extends BaseClient
             'userId' => $wxParams['openid'],
             'extend' => $wxParams['attach'],
         ];
+
+        //分账
+        if (isset($wxParams['ledgerAccountFlag']) && in_array($wxParams['ledgerAccountFlag'], ['00', '04'])) $params['ledgerAccountEffectTime'] = Arr::get($wxParams, 'ledgerAccountEffectTime', '30');
 
         if (empty($params['trmIp'])) {
             $params['trmIp'] = $this->get_client_ip();
@@ -279,5 +282,390 @@ class TianquePayment extends BaseClient
 
         $resp = $this->AopClient->request('/capital/query/queryBalance', $params);
         dd($resp);
+    }
+
+    /**
+     * 添加商户
+     * @param array $data
+     * @return array
+     * @throws \Exception
+     */
+    public function addMerchant(array $data = [])
+    {
+        $validator = Validator::make($data, [
+            'applyNo' => 'required|string|max:32',
+            'projectNo' => 'required|string',
+            'mno' => 'required|string',
+            'role' => 'required|string',
+            'balanceLedgerFlag' => 'sometimes|string',
+            'cancelFlag' => 'sometimes|string',
+            'businessDescPicId' => 'sometimes|string',
+            'otherProvePicId' => 'sometimes|string',
+            'remark' => 'sometimes|string',
+            'callbackUrl' => 'sometimes|string',
+        ]);
+
+        if ($validator->fails()) {
+            throw  new \Exception($validator->getMessageBag());
+        }
+
+        $params = [
+            'applyNo' => $data['applyNo'],
+            'projectNo' => $data['projectNo'],
+            'mno' => $data['mno'],
+            'role' => $data['role'],
+        ];
+
+        if (isset($params['balanceLedgerFlag'])) $params['balanceLedgerFlag'] = $data['balanceLedgerFlag'];
+        if (isset($params['cancelFlag'])) $params['cancelFlag'] = $data['cancelFlag'];
+        if (isset($params['otherProvePicId'])) $params['balanceLedgerFlag'] = $data['otherProvePicId'];
+        if (isset($params['businessDescPicId'])) $params['businessDescPicId'] = $data['businessDescPicId'];
+        if (isset($params['remark'])) $params['remark'] = $data['remark'];
+
+        $resp = $this->AopClient->request('/capital/fundProject/merJoin', $params);
+
+        $resp = json_decode($resp, true);
+        if ($resp['code'] !== '0000') {
+            throw new \Exception($resp['msg']);
+        }
+
+        $respData = $resp['respData'];
+        if ($respData['bizCode'] !== '0000') {
+            throw new \Exception($respData['bizMsg']);
+        }
+        return [
+            'status' => 0,
+            'applyNo' => $respData['applyNo'],
+            'applyStatus' => $respData['applyStatus']
+        ];
+    }
+
+    /**
+     * 变更商户
+     * @param array $data
+     * @return array
+     * @throws \Exception
+     */
+    public function changeMerchant(array $data = [])
+    {
+        $validator = Validator::make($data, [
+            'applyNo' => 'required|string|max:32',
+            'projectNo' => 'required|string',
+            'mno' => 'required|string',
+            'role' => 'required|string',
+            'balanceLedgerFlag' => 'sometimes|string',
+            'cancelFlag' => 'sometimes|string',
+            'businessDescPicId' => 'sometimes|string',
+            'otherProvePicId' => 'sometimes|string',
+            'remark' => 'sometimes|string',
+            'callbackUrl' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            throw  new \Exception($validator->getMessageBag());
+        }
+
+        $params = [
+            'applyNo' => $data['applyNo'],
+            'projectNo' => $data['projectNo'],
+            'mno' => $data['mno'],
+            'role' => $data['role'],
+        ];
+
+        if (isset($params['balanceLedgerFlag'])) $params['balanceLedgerFlag'] = $data['balanceLedgerFlag'];
+        if (isset($params['cancelFlag'])) $params['cancelFlag'] = $data['cancelFlag'];
+        if (isset($params['otherProvePicId'])) $params['balanceLedgerFlag'] = $data['otherProvePicId'];
+        if (isset($params['businessDescPicId'])) $params['businessDescPicId'] = $data['businessDescPicId'];
+        if (isset($params['remark'])) $params['remark'] = $data['remark'];
+
+        $resp = $this->AopClient->request('/capital/fundProject/merChange', $params);
+
+        $resp = json_decode($resp, true);
+        if ($resp['code'] !== '0000') {
+            throw new \Exception($resp['msg']);
+        }
+
+        $respData = $resp['respData'];
+        if ($respData['bizCode'] !== '0000') {
+            throw new \Exception($respData['bizMsg']);
+        }
+        return [
+            'applyNo' => $respData['applyNo'],
+            'applyStatus' => $respData['applyStatus']
+        ];
+    }
+
+    /**
+     * 变更商户
+     * @param array $data
+     * @return array
+     * @throws \Exception
+     */
+    public function queryMerchant(string $applyNo)
+    {
+        $params = [
+            'applyNo' => $applyNo,
+        ];
+
+        $resp = $this->AopClient->request('/capital/fundProject/applyDetail', $params);
+
+        $resp = json_decode($resp, true);
+        if ($resp['code'] !== '0000') {
+            throw new \Exception($resp['msg']);
+        }
+
+        $respData = $resp['respData'];
+        if ($respData['bizCode'] !== '0000') {
+            throw new \Exception($respData['bizMsg']);
+        }
+
+        return [
+            'applyNo' => $respData['applyNo'],
+            'applyStatus' => $respData['applyStatus'],
+            'auditTime' => $respData['auditTime'],
+            'auditSuggest' => $respData['auditSuggest'],
+        ];
+    }
+
+    /**
+     * 订单分账商户协议签署
+     * @param array $data
+     * @return array
+     * @throws \Exception
+     */
+    public function orderMerchantSign(array $data = [])
+    {
+        $validator = Validator::make($data, [
+            'mno' => 'required|string',
+            'signType' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            throw  new \Exception($validator->getMessageBag());
+        }
+
+        $params = [
+            'mno' => $data['mno'],
+            'signType' => $data['signType'],
+        ];
+
+        if (isset($params['ledgerLetter'])) $params['ledgerLetter'] = $data['ledgerLetter'];
+
+        $resp = $this->AopClient->request('/merchant/sign/getUrl', $params);
+
+        $resp = json_decode($resp, true);
+        if ($resp['code'] !== '0000') {
+            throw new \Exception($resp['msg']);
+        }
+
+        $respData = $resp['respData'];
+        if ($respData['bizCode'] !== '0000') {
+            throw new \Exception($respData['bizMsg']);
+        }
+
+        return [
+            'retUrl' => $respData['retUrl'],
+        ];
+    }
+
+    /**
+     * 订单分账商户申请结果查询
+     * @param string $mno
+     * @return array
+     * @throws \Exception
+     */
+    public function queryOrderMerchant($mno = false)
+    {
+        $params = [
+            'mno' => $mno ?? $this->userConfig['mno'],
+        ];
+
+        $resp = $this->AopClient->request('/merchant/sign/querySignContract', $params);
+
+        $resp = json_decode($resp, true);
+        if ($resp['code'] !== '0000') {
+            throw new \Exception($resp['msg']);
+        }
+
+        $respData = $resp['respData'];
+        if ($respData['bizCode'] !== '0000') {
+            throw new \Exception($respData['bizMsg']);
+        }
+
+        return [
+            'signResult' => $respData['signResult'],
+            'signTime' => $respData['signTime'],
+        ];
+    }
+
+    /**
+     * 订单商户分账设置
+     * @param string $mno
+     * @param string $mnoArray
+     * @return array
+     * @throws \Exception
+     */
+    public function setOrderMerchants(string $mnoArray, $mno = false)
+    {
+        $params = [
+            'mno' => $mno ?? $this->userConfig['mno'],
+            'mnoArray' => $mnoArray,
+        ];
+
+        $resp = $this->AopClient->request('/query/ledger/setMnoArray', $params);
+
+        $resp = json_decode($resp, true);
+        if ($resp['code'] !== '0000') {
+            throw new \Exception($resp['msg']);
+        }
+
+        $respData = $resp['respData'];
+        if ($respData['bizCode'] !== '0000') {
+            throw new \Exception($respData['bizMsg']);
+        }
+
+        return $respData;
+    }
+
+    /**
+     * 订单分账
+     * @param string $mno
+     * @param string $mnoArray
+     * @return array
+     * @throws \Exception
+     */
+    public function orderLedger(array $data = [])
+    {
+        $validator = Validator::make($data, [
+//            'mno' => 'required|string',
+            'ordNo' => 'required|string',
+            'uuid' => 'required|string',
+            'ledgerAccountFlag' => 'required|string',
+            'ledgerRule' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            throw  new \Exception($validator->getMessageBag());
+        }
+
+        $params = [
+            'mno' => Arr::get($data, 'mno', $this->userConfig['mno']),
+            'ordNo' => $data['ordNo'],
+            'uuid' => $data['uuid'],
+            'ledgerAccountFlag' => $data['ledgerAccountFlag'],
+            'ledgerRule' => $data['ledgerRule'],
+        ];
+
+        if (isset($params['notifyAddress'])) $params['notifyAddress'] = $data['notifyAddress'];
+        if (isset($params['thirdPartyUuid'])) $params['thirdPartyUuid'] = $data['thirdPartyUuid'];
+
+        $resp = $this->AopClient->request('/query/ledger/launchLedger', $params);
+
+        $resp = json_decode($resp, true);
+        if ($resp['code'] !== '0000') {
+            throw new \Exception($resp['msg']);
+        }
+
+        $respData = $resp['respData'];
+        if ($respData['bizCode'] !== '0000') {
+            throw new \Exception($respData['bizMsg']);
+        }
+
+        return $respData;
+    }
+
+    /**
+     * 订单分账分账结果查询
+     * @param array $data
+     * @return mixed
+     * @throws \Exception
+     */
+    public function queryOrderLedger(array $data = [])
+    {
+        $validator = Validator::make($data, [
+//            'mno' => 'required|string',
+            'ordNo' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            throw  new \Exception($validator->getMessageBag());
+        }
+
+        $params = [
+            'mno' => Arr::get($data, 'mno', $this->userConfig['mno']),
+            'ordNo' => $data['ordNo'],
+        ];
+
+        if (isset($params['refundOrdNo'])) $params['refundOrdNo'] = $data['refundOrdNo'];
+        if (isset($params['thirdPartyUuid'])) $params['thirdPartyUuid'] = $data['thirdPartyUuid'];
+        if (isset($params['isCardLedge'])) $params['isCardLedge'] = $data['isCardLedge'];
+
+        $resp = $this->AopClient->request('/query/ledger/queryLedgerAccount', $params);
+
+        $resp = json_decode($resp, true);
+        if ($resp['code'] !== '0000') {
+            throw new \Exception($resp['msg']);
+        }
+
+        $respData = $resp['respData'];
+        if ($respData['bizCode'] !== '0000') {
+            throw new \Exception($respData['bizMsg']);
+        }
+
+        return $respData;
+    }
+
+    /**
+     * 订单分账分账结果查询
+     * @param array $data
+     * @return mixed
+     * @throws \Exception
+     */
+    public function queryLedgerAmt(array $data = [])
+    {
+        $validator = Validator::make($data, [
+//            'mno' => 'required|string',
+            'ordNo' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            throw  new \Exception($validator->getMessageBag());
+        }
+
+        $params = [
+            'mno' => Arr::get($data, 'mno', $this->userConfig['mno']),
+            'ordNo' => $data['ordNo'],
+        ];
+
+        $resp = $this->AopClient->request('/query/ledger/queryLedgerAmt', $params);
+
+        $resp = json_decode($resp, true);
+        if ($resp['code'] !== '0000') {
+            throw new \Exception($resp['msg']);
+        }
+
+        $respData = $resp['respData'];
+        if ($respData['bizCode'] !== '0000') {
+            throw new \Exception($respData['bizMsg']);
+        }
+
+        return $respData;
+    }
+
+    /**
+     * 订单分账结果回调
+     * @param \Closure $closure
+     * @return \Symfony\Component\HttpFoundation\Response|void
+     */
+    public function orderLedgerNotify(\Closure $closure)
+    {
+        $data = request()->all();
+//        if ($data['bizCode'] !== '0000') throw new \Exception($data['bizMsg']);
+        $message = [
+            'return_code' => 'SUCCESS',
+            'result_code' => 'SUCCESS',
+        ];
+        $re = \call_user_func($closure, $message, $data);
+        if ($re) return $this->AopClient->toResponse();
     }
 }
