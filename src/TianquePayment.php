@@ -79,12 +79,14 @@ class TianquePayment extends BaseClient
                         'return_code' => $return_code,
                         'result_code' => 'FAIL',
                         'err_code' => 'OUT_TRADE_NO_USED',
+                        'respData' => $resp
                     ];
                     break;
                 default:
                     $re = [
                         'return_code' => 'FAIL',
                         'return_msg' => $return_msg,
+                        'respData' => $resp
                     ];
                     break;
 
@@ -99,8 +101,10 @@ class TianquePayment extends BaseClient
                 'result_code' => 'FAIL',
                 'err_code' => $respData['bizCode'],
                 'err_code_des' => $respData['bizMsg'],
+                'respData' => $resp
             ];
-            throw new \Exception($respData['bizMsg']);
+            return $re;
+//            throw new \Exception($respData['bizMsg']);
         }
         return [
             'return_code' => $return_code,
@@ -110,7 +114,7 @@ class TianquePayment extends BaseClient
             "sign" => $respData['paySign'],
             "prepay_id" => $respData['payPackage'],
             "payTimeStamp" => $respData['payTimeStamp'],
-//            'respData' => $respData
+            'respData' => $resp
         ];
     }
 
