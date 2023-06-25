@@ -175,7 +175,6 @@ class AopClient
 
         //echo  "reponse".$reponse;
         if (curl_errno($ch)) {
-
             throw new Exception(curl_error($ch), 0);
         } else {
             $httpStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -185,12 +184,14 @@ class AopClient
         }
 
         curl_close($ch);
+        $this->writeLog("responseBodyString" . $reponse);
         return $reponse;
     }
 
     function writeLog($text)
     {
-        file_put_contents(base_path('storage/logs/tianque.log'), date("Y-m-d H:i:s") . "  " . $text . "\r\n", FILE_APPEND);
+        $day = date("Y-m-d");
+        file_put_contents(base_path('storage/logs/tianque-' . $day . '.log'), date("Y-m-d H:i:s") . "  " . $text . "\r\n", FILE_APPEND);
     }
 
     /**
