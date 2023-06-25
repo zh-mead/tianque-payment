@@ -167,7 +167,7 @@ class AopClient
         curl_setopt($ch, CURLOPT_POST, true);
 
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postBodyString);
-        $this->writeLog("postBodyString" . $postBodyString);
+//        $this->writeLog("postBodyString" . $postBodyString);
         $headers = array('content-type:application/json;charset=' . $this->postCharset);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
